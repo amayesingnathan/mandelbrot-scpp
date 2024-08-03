@@ -8,7 +8,6 @@ layout(location = 1) in vec4 aColour;
 layout(location = 2) in vec2 aTexCoord;
 layout(location = 3) in float aTexIndex;
 layout(location = 4) in float aTilingFactor;
-layout(location = 5) in int aEntityID;
 
 layout(std140, binding = 0) uniform Camera
 {
@@ -24,7 +23,6 @@ struct VertexOutput
 
 layout (location = 0) out VertexOutput Output;
 layout (location = 3) out flat float vTexIndex;
-layout (location = 4) out flat int vEntityID;
 
 void main()
 {
@@ -32,7 +30,6 @@ void main()
 	Output.TexCoord = aTexCoord;
 	Output.TilingFactor = aTilingFactor;
 	vTexIndex = aTexIndex;
-	vEntityID = aEntityID;
 
 	gl_Position = uViewProjection * vec4(aPosition, 1.0);
 }
@@ -41,7 +38,6 @@ void main()
 #version 450 core
 
 layout(location = 0) out vec4 oColour;
-layout(location = 1) out int oEntityID;
 
 struct VertexOutput
 {
@@ -52,7 +48,6 @@ struct VertexOutput
 
 layout (location = 0) in VertexOutput Input;
 layout (location = 3) in flat float vTexIndex;
-layout (location = 4) in flat int vEntityID;
 
 layout (binding = 0) uniform sampler2D uTextures[32];
 
@@ -100,5 +95,4 @@ void main()
 		discard;
 
 	oColour = texColour;
-	oEntityID = vEntityID;
 }

@@ -1,4 +1,4 @@
-project "TemplateProject"
+project "mandelbrot"
     language "C++"
     cppdialect "C++latest"
 	kind "ConsoleApp"
@@ -19,7 +19,7 @@ project "TemplateProject"
 
     includedirs
     {
-        "%{IncludeDir.TemplateProject}",
+        "%{IncludeDir.mandelbrot}",
         "%{IncludeDir.StreamlineCore}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.imgui}",

@@ -1,0 +1,3 @@
+[submodule "mandelbrot/dependencies/streamline-cpp"]
+	path = mandelbrot/dependencies/streamline-cpp
+	url = https://github.com/amayesingnathan/streamline-cpp.git
