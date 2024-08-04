@@ -22,6 +22,7 @@ Application* CreateApplication(int argc, char** argv)
 {
 	Impl<ApplicationSpecification> spec = MakeImpl<ApplicationSpecification>();
 	spec->name = "ExampleApp";
+	spec->resolution = { 1920, 1080 };
 
 	return new MandelbrotApplication(std::move(spec));
 }

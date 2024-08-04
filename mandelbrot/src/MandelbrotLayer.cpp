@@ -10,18 +10,42 @@ void MandelbrotLayer::OnAttach()
 {
 	const auto& appSpec = Application::GetSpec();
 
+	int width = appSpec.resolution.width;
+	int height = appSpec.resolution.height;
+
 	FramebufferSpec fbSpec;
-	fbSpec.width = appSpec.resolution.width;
-	fbSpec.height = appSpec.resolution.height;
+	fbSpec.width = width;
+	fbSpec.height = height;
 	fbSpec.attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::Depth };
 	fbSpec.samples = 1;
 
 	mFrame.fbo = Ref<Framebuffer>::Create(fbSpec);
+	mFrame.texture = Ref<Texture2D>::Create(width, height);
 
-	mFrame.viewportSize = { fbSpec.width, fbSpec.height };
+	mFrame.viewportSize = { width, height };
 
-	float aspectRatio = static_cast<float>(fbSpec.width) / static_cast<float>(fbSpec.height);
+	float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
 	mFrame.camera = Ref<Camera2D>::Create(aspectRatio);
+
+	mFrame.pixelData = Grid<Pixel>(width, height);
+
+	mFrame.jobResults.reserve(width * height);
+
+	for (int j = 0; j < height; j++)
+	{
+		for (int i = 0; i < width; i++)
+		{
+			mFrame.jobResults.emplace_back(mFrame.workers.Queue(GetMandelbrotColour, i, j, width, height));
+		}
+	}
+
+	for (auto&& [future, pixel] : std::views::zip(mFrame.jobResults, mFrame.pixelData))
+	{
+		pixel = future.get();
+	}
+
+	mFrame.texture->SetData(mFrame.pixelData.Data(), width * height * sizeof(Pixel));
+	mFrame.jobResults.clear();
 }
 
 void MandelbrotLayer::OnDetach()
@@ -46,11 +70,13 @@ void MandelbrotLayer::OnRender()
 {
 	mFrame.fbo->Bind();
 
-	Renderer::SetClearColor({ 1, 0, 1, 1 });
+	Renderer::SetClearColor({ 0, 0, 0, 1 });
 	Renderer::Clear();
 
 	Renderer2D::BeginState(mFrame.camera->GetViewProjection());
-	Renderer2D::DrawQuad(Vector2{ 0, 0 }, Vector2{ 5, 5 }, Vector4{ 1, 0, 0, 1 });
+
+	Renderer2D::DrawQuad(Vector2{ 0, 0 }, Vector2{ 3, 2 }, mFrame.texture);
+
 	Renderer2D::EndState();
 
 	mFrame.fbo->Unbind();

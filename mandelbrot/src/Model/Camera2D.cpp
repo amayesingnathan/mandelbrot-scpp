@@ -73,8 +73,8 @@ bool Camera2D::OnKeyPressed(KeyPressedEvent& e)
 
 bool Camera2D::OnMouseScroll(MouseScrolledEvent& e)
 {
-	mZoomLevel -= e.yOffset * 0.25f;
-	mZoomLevel = std::max(mZoomLevel, 0.25f);
+	mZoomLevel -= e.yOffset * 0.1f;
+	mZoomLevel = std::max(mZoomLevel, 0.1f);
 
 	mProjection = glm::ortho(-mAspectRatio * mZoomLevel, mAspectRatio * mZoomLevel, -mZoomLevel, mZoomLevel);
 
