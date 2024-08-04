@@ -2,7 +2,7 @@
 
 #include "Common/Base.h"
 
-SCONSTEXPR int ITERATIONS = 1000;
+SCONSTEXPR int ITERATIONS = 200;
 SCONSTEXPR double LIMIT = 16;
 
 SCONSTEXPR double X_MIN = -2.0;

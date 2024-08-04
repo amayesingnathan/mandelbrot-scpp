@@ -17,5 +17,8 @@ public:
 	LISTENING_EVENTS()
 
 private:
+	void RenderMandelbrot(int width, int height);
+
+private:
 	FrameData mFrame;
 };

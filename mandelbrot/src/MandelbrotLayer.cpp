@@ -3,6 +3,7 @@
 #include "ImGui/Widgets.h"
 #include "Graphics/Renderer.h"
 #include "Graphics/Renderer2D.h"
+#include "Types/Timer.h"
 
 using namespace slc;
 
@@ -31,21 +32,7 @@ void MandelbrotLayer::OnAttach()
 
 	mFrame.jobResults.reserve(width * height);
 
-	for (int j = 0; j < height; j++)
-	{
-		for (int i = 0; i < width; i++)
-		{
-			mFrame.jobResults.emplace_back(mFrame.workers.Queue(GetMandelbrotColour, i, j, width, height));
-		}
-	}
-
-	for (auto&& [future, pixel] : std::views::zip(mFrame.jobResults, mFrame.pixelData))
-	{
-		pixel = future.get();
-	}
-
-	mFrame.texture->SetData(mFrame.pixelData.Data(), width * height * sizeof(Pixel));
-	mFrame.jobResults.clear();
+	RenderMandelbrot(width, height);
 }
 
 void MandelbrotLayer::OnDetach()
@@ -90,4 +77,26 @@ void MandelbrotLayer::OnOverlayRender()
 	ImGui::Image((ImTextureID)(uintptr_t)mFrame.fbo->GetTextureID(), Utils::ToImVec<ImVec2>(mFrame.viewportSize));
 
 	Widgets::EndWindow();
+}
+
+void MandelbrotLayer::RenderMandelbrot(int width, int height)
+{
+	Timer timer;
+	for (int j = 0; j < height; j++)
+	{
+		for (int i = 0; i < width; i++)
+		{
+			mFrame.jobResults.emplace_back(mFrame.workers.Queue(GetMandelbrotColour, i, j, width, height));
+		}
+	}
+
+	for (auto&& [future, pixel] : std::views::zip(mFrame.jobResults, mFrame.pixelData))
+	{
+		pixel = future.get();
+	}
+
+	mFrame.texture->SetData(mFrame.pixelData.Data(), width * height * sizeof(Pixel));
+	mFrame.jobResults.clear();
+
+	std::cout << "Rendered in " << timer.elapsedMillis() << "ms" << std::flush;
 }
