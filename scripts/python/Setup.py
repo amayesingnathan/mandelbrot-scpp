@@ -27,7 +27,7 @@ def main():
         if platform.system() == "Windows":
             subprocess.call([os.path.abspath("./scripts/gen-projects/msvc.bat"), "nopause"])
         elif platform.system() == "Linux":
-            subprocess.call([os.path.abspath("./scripts/gen-projects/gcc.sh", "-dr"), "nopause"])
+            subprocess.call([os.path.abspath("./scripts/gen-projects/gcc.sh"), "-dr", "nopause"])
 
         print("\nSetup completed!")
     else:
