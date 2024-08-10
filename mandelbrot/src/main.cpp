@@ -7,7 +7,7 @@ using namespace slc;
 class MandelbrotApplication : public Application
 {
 public:
-	MandelbrotApplication(Impl<ApplicationSpecification> spec)
+	MandelbrotApplication(Impl<MandelbrotAppSpec> spec)
 		: Application(std::move(spec))
 	{
 		PushLayer<MandelbrotLayer>();
@@ -20,9 +20,9 @@ public:
 
 Application* CreateApplication(int argc, char** argv)
 {
-	Impl<ApplicationSpecification> spec = MakeImpl<ApplicationSpecification>();
+	Impl<MandelbrotAppSpec> spec = MakeImpl<MandelbrotAppSpec>();
 	spec->name = "ExampleApp";
-	spec->resolution = { 1920, 1080 };
+	spec->renderMode = RenderMode::GPU;
 
 	return new MandelbrotApplication(std::move(spec));
 }

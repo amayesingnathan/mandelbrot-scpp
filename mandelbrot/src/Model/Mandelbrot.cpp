@@ -10,12 +10,17 @@ SCONSTEXPR double X_MAX = 2.0;
 SCONSTEXPR double Y_MIN = -2.0;
 SCONSTEXPR double Y_MAX = 2.0;
 
+using namespace slc;
+
 static int IsInMandelbrot(Complex c)
 {
 	Complex z{};
 
 	for (int i = 0; i < ITERATIONS; i++)
 	{
+		double x = std::pow(z.real(), 2) + std::pow(z.imag(), 2);
+		double y = 2.0 * z.real() * z.imag();
+
 		z = std::pow(z, 2) + c;
 
 		if (std::norm(z) > LIMIT)

@@ -3,12 +3,8 @@
 #include <complex>
 
 #include "Types/Math.h"
+#include "Graphics/Pixel.h"
 
 using Complex = std::complex<double>;
 
-struct Pixel
-{
-	uint8_t r, g, b, a;
-};
-
-Pixel GetMandelbrotColour(double x, double y, int width, int height);
+slc::Pixel GetMandelbrotColour(double x, double y, int width, int height);

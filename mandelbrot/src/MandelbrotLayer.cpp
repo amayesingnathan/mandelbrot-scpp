@@ -11,28 +11,41 @@ void MandelbrotLayer::OnAttach()
 {
 	const auto& appSpec = Application::GetSpec();
 
-	int width = appSpec.resolution.width;
-	int height = appSpec.resolution.height;
+	mRenderData.width = appSpec.resolution.width;
+	mRenderData.height = appSpec.resolution.height;
 
 	FramebufferSpec fbSpec;
-	fbSpec.width = width;
-	fbSpec.height = height;
+	fbSpec.width = mRenderData.width;
+	fbSpec.height = mRenderData.height;
 	fbSpec.attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::Depth };
 	fbSpec.samples = 1;
 
-	mFrame.fbo = Ref<Framebuffer>::Create(fbSpec);
-	mFrame.texture = Ref<Texture2D>::Create(width, height);
+	mRenderData.fbo = Ref<Framebuffer>::Create(fbSpec);
+	mRenderData.texture = Ref<Texture2D>::Create(mRenderData.width, mRenderData.height);
 
-	mFrame.viewportSize = { width, height };
+	float aspectRatio = static_cast<float>(mRenderData.width) / static_cast<float>(mRenderData.height);
+	mRenderData.camera = Ref<Camera2D>::Create(aspectRatio);
 
-	float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
-	mFrame.camera = Ref<Camera2D>::Create(aspectRatio);
+	mRenderData.pixelData = Grid<Pixel>(mRenderData.width, mRenderData.height);
+	mRenderData.jobResults.reserve(mRenderData.width * mRenderData.height);
 
-	mFrame.pixelData = Grid<Pixel>(width, height);
+	mRenderData.vertexArray = Ref<VertexArray>::Create();
+	mRenderData.vertexBuffer = Ref<VertexBuffer>::Create(4 * static_cast<uint32_t>(sizeof(Vertex)));
+	mRenderData.vertexBuffer->SetLayout({
+		{ ShaderDataType::Float3, "iPosition" },
+		{ ShaderDataType::Float2, "iResolution "},
+	});
 
-	mFrame.jobResults.reserve(width * height);
+	mRenderData.vertexArray->AddVertexBuffer(mRenderData.vertexBuffer);
 
-	RenderMandelbrot(width, height);
+	std::array<uint32_t, INDEX_COUNT> indices = {
+		0, 1, 2, 2, 3, 0
+	};
+
+	auto indexBuffer = Ref<IndexBuffer>::Create(indices.data(), INDEX_COUNT);
+	mRenderData.vertexArray->SetIndexBuffer(indexBuffer);
+
+	mRenderData.shader = Ref<Shader>::Create("resources/shaders/Mandelbrot.glsl");
 }
 
 void MandelbrotLayer::OnDetach()
@@ -41,62 +54,95 @@ void MandelbrotLayer::OnDetach()
 
 void MandelbrotLayer::OnUpdate(Timestep ts)
 {
-	if (FramebufferSpec spec = mFrame.fbo->GetSpecification();
-		mFrame.viewportSize.x > 0.0f && mFrame.viewportSize.y > 0.0f && // zero sized framebuffer is invalid
-		(spec.width != mFrame.viewportSize.x || spec.height != mFrame.viewportSize.y))
-	{
-		mFrame.fbo->Resize(static_cast<uint32_t>(mFrame.viewportSize.x), static_cast<uint32_t>(mFrame.viewportSize.y));
-
-		mFrame.camera->SetViewportSize(mFrame.viewportSize);
-	}
-
-	mFrame.camera->OnUpdate(ts);
+	mRenderData.camera->OnUpdate(ts);
 }
 
 void MandelbrotLayer::OnRender()
 {
-	mFrame.fbo->Bind();
+	mRenderData.fbo->Bind();
 
 	Renderer::SetClearColor({ 0, 0, 0, 1 });
 	Renderer::Clear();
 
-	Renderer2D::BeginState(mFrame.camera->GetViewProjection());
+	Renderer2D::BeginState(mRenderData.camera->GetViewProjection());
 
-	Renderer2D::DrawQuad(Vector2{ 0, 0 }, Vector2{ 3, 2 }, mFrame.texture);
+	RenderMandelbrot();
 
 	Renderer2D::EndState();
 
-	mFrame.fbo->Unbind();
+	mRenderData.fbo->Unbind();
 }
 
 void MandelbrotLayer::OnOverlayRender()
 {
 	Widgets::BeginWindow("Test");
 
-	mFrame.viewportSize = Utils::AvailableRegion<glm::vec2>();
-	ImGui::Image((ImTextureID)(uintptr_t)mFrame.fbo->GetTextureID(), Utils::ToImVec<ImVec2>(mFrame.viewportSize));
+	auto viewportSize = Utils::AvailableRegion<Vector2>();
+	ImGui::Image((ImTextureID)(uintptr_t)mRenderData.fbo->GetTextureID(), Utils::ToImVec<ImVec2>(viewportSize));
 
 	Widgets::EndWindow();
 }
 
-void MandelbrotLayer::RenderMandelbrot(int width, int height)
+void MandelbrotLayer::RenderMandelbrot()
 {
-	Timer timer;
-	for (int j = 0; j < height; j++)
+	auto const& spec = Application::GetSpec<MandelbrotAppSpec>();
+
+	switch (spec.renderMode)
 	{
-		for (int i = 0; i < width; i++)
+	case RenderMode::CPU:
+		RenderMandelbrotCPU();
+		break;
+
+	case RenderMode::GPU:
+		RenderMandelbrotGPU();
+		break;
+	}
+}
+
+void MandelbrotLayer::RenderMandelbrotCPU()
+{
+	for (int j = 0; j < mRenderData.height; j++)
+	{
+		for (int i = 0; i < mRenderData.width; i++)
 		{
-			mFrame.jobResults.emplace_back(mFrame.workers.Queue(GetMandelbrotColour, i, j, width, height));
+			mRenderData.jobResults.emplace_back(mRenderData.workers.Queue(GetMandelbrotColour, i, j, mRenderData.width, mRenderData.height));
 		}
 	}
 
-	for (auto&& [future, pixel] : std::views::zip(mFrame.jobResults, mFrame.pixelData))
+	for (auto&& [future, pixel] : std::views::zip(mRenderData.jobResults, mRenderData.pixelData))
 	{
 		pixel = future.get();
 	}
 
-	mFrame.texture->SetData(mFrame.pixelData.Data(), width * height * sizeof(Pixel));
-	mFrame.jobResults.clear();
+	mRenderData.texture->SetData(mRenderData.pixelData.Data(), mRenderData.width * mRenderData.height * sizeof(Pixel));
+	mRenderData.jobResults.clear();
 
-	std::cout << "Rendered in " << timer.elapsedMillis() << "ms" << std::flush;
+	Renderer2D::DrawQuad(Vector2{ 0, 0 }, Vector2{ 3, 2 }, mRenderData.texture);
+}
+
+void MandelbrotLayer::RenderMandelbrotGPU()
+{
+	SCONSTEXPR Vector4 QuadVertexPositions[4] =
+	{
+		{ -0.5f, -0.5f, 0.0f, 1.0f },
+		{  0.5f, -0.5f, 0.0f, 1.0f },
+		{  0.5f,  0.5f, 0.0f, 1.0f },
+		{ -0.5f,  0.5f, 0.0f, 1.0f }
+	};
+
+	SCONSTEXPR Matrix4 Centre = Matrix4(1.0f);
+
+	SCONSTEXPR uint32_t BufferSize = sizeof(Vertex) * VERTEX_COUNT;
+
+	Vector2 resolution(mRenderData.width, mRenderData.height);
+
+	for (auto&& [vertexData, position] : std::views::zip(mRenderData.vertexData, QuadVertexPositions))
+	{
+		vertexData.position = position;
+		vertexData.resolution = resolution;
+	}
+
+	mRenderData.vertexBuffer->SetData(mRenderData.vertexData.data(), BufferSize);
+	mRenderData.shader->Bind();
+	Renderer::DrawIndexed(mRenderData.vertexArray);
 }

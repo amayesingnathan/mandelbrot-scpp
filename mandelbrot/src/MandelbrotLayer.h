@@ -2,7 +2,19 @@
 
 #include "Common/Application.h"
 
-#include "Model/FrameData.h"
+#include "Model/Mandelbrot.h"
+#include "Rendering/RenderData.h"
+
+enum class RenderMode
+{
+	CPU,
+	GPU
+};
+
+struct MandelbrotAppSpec : public slc::ApplicationSpecification
+{
+	RenderMode renderMode = RenderMode::GPU;
+};
 
 class MandelbrotLayer : public slc::ApplicationLayer
 {
@@ -17,8 +29,10 @@ public:
 	LISTENING_EVENTS()
 
 private:
-	void RenderMandelbrot(int width, int height);
+	void RenderMandelbrot();
+	void RenderMandelbrotCPU();
+	void RenderMandelbrotGPU();
 
 private:
-	FrameData mFrame;
+	RenderData mRenderData;
 };

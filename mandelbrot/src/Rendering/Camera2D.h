@@ -29,7 +29,7 @@ private:
 private:
 	// Control Data
 	float mAspectRatio;
-	float mZoomLevel = 1.0f;
+	float mZoomLevel = 0.01f;
 
 	slc::Timestep mCurrentTS;
 
