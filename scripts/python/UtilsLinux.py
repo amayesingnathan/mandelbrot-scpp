@@ -4,13 +4,14 @@ import os
 import requests
 import time
 import urllib
+import subprocess
 
 import tarfile
 from pathlib import Path
 
 def OpenFile(filepath):
     opener = "open" if sys.platform == "darwin" else "xdg-open"
-    subprocess.call([opener, filename])
+    subprocess.call([opener, filepath])
 
 def DownloadFile(url, filepath):
     filepath = os.path.abspath(filepath)
@@ -39,6 +40,8 @@ def DownloadFile(url, filepath):
         raise TypeError("Argument 'url' must be of type list or string")
 
     with open(filepath, 'wb') as f:
+        print(url)
+        print(filepath)
         headers = {'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36"}
         response = requests.get(url, headers=headers, stream=True)
         total = response.headers.get('content-length')
@@ -76,9 +79,14 @@ def DownloadFile(url, filepath):
 def UnpackFile(filepath, _, deleteTarFile=True):
     tarFilePath = os.path.abspath(filepath) # get full path of files
 
-    myTar = tarfile.open(tarFilePath)
-    myTar.extractall(os.path.dirname(tarFilePath))
-    myTar.close()
+    restoreDir = os.getcwd()
+    os.chdir(Path(tarFilePath).parent.absolute())
+
+    tar = tarfile.open(tarFilePath)
+    tar.extractall()
+    tar.close()
 
     if deleteTarFile:
         os.remove(tarFilePath) # delete tar file
+        
+    os.chdir(restoreDir)
