@@ -2,10 +2,10 @@
 
 #include "Common/Base.h"
 
-SCONSTEXPR int ITERATIONS = 200;
+SCONSTEXPR int ITERATIONS = 100;
 SCONSTEXPR double LIMIT = 16;
 
-SCONSTEXPR double X_MIN = -2.0;
+SCONSTEXPR double X_MIN = -3.0;
 SCONSTEXPR double X_MAX = 2.0;
 SCONSTEXPR double Y_MIN = -2.0;
 SCONSTEXPR double Y_MAX = 2.0;

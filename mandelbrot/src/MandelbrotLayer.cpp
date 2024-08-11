@@ -7,9 +7,11 @@
 
 using namespace slc;
 
+SCONSTEXPR float ScaleFactor = 0.05f;
+
 void MandelbrotLayer::OnAttach()
 {
-	const auto& appSpec = Application::GetSpec();
+	const auto& appSpec = Application::GetSpec<MandelbrotAppSpec>();
 
 	mRenderData.width = appSpec.resolution.width;
 	mRenderData.height = appSpec.resolution.height;
@@ -20,11 +22,13 @@ void MandelbrotLayer::OnAttach()
 	fbSpec.attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::Depth };
 	fbSpec.samples = 1;
 
+	mRenderData.zoomLevel = 1.0f;
+
+	mRenderData.viewportBounds[0] = Vector2{ -3.0f, -2.0f };
+	mRenderData.viewportBounds[1] = Vector2{ 2.0f, 2.0f };
+
 	mRenderData.fbo = Ref<Framebuffer>::Create(fbSpec);
 	mRenderData.texture = Ref<Texture2D>::Create(mRenderData.width, mRenderData.height);
-
-	float aspectRatio = static_cast<float>(mRenderData.width) / static_cast<float>(mRenderData.height);
-	mRenderData.camera = Ref<Camera2D>::Create(aspectRatio);
 
 	mRenderData.pixelData = Grid<Pixel>(mRenderData.width, mRenderData.height);
 	mRenderData.jobResults.reserve(mRenderData.width * mRenderData.height);
@@ -33,7 +37,9 @@ void MandelbrotLayer::OnAttach()
 	mRenderData.vertexBuffer = Ref<VertexBuffer>::Create(4 * static_cast<uint32_t>(sizeof(Vertex)));
 	mRenderData.vertexBuffer->SetLayout({
 		{ ShaderDataType::Float3, "iPosition" },
-		{ ShaderDataType::Float2, "iResolution "},
+		{ ShaderDataType::Float2, "iResolution" },
+		{ ShaderDataType::Float2, "iViewportMin" },
+		{ ShaderDataType::Float2, "iViewportMax" },
 	});
 
 	mRenderData.vertexArray->AddVertexBuffer(mRenderData.vertexBuffer);
@@ -46,6 +52,11 @@ void MandelbrotLayer::OnAttach()
 	mRenderData.vertexArray->SetIndexBuffer(indexBuffer);
 
 	mRenderData.shader = Ref<Shader>::Create("resources/shaders/Mandelbrot.glsl");
+
+	if (appSpec.renderMode == RenderMode::CPU)
+	{
+		RenderMandelbrot();
+	}
 }
 
 void MandelbrotLayer::OnDetach()
@@ -54,7 +65,6 @@ void MandelbrotLayer::OnDetach()
 
 void MandelbrotLayer::OnUpdate(Timestep ts)
 {
-	mRenderData.camera->OnUpdate(ts);
 }
 
 void MandelbrotLayer::OnRender()
@@ -64,7 +74,7 @@ void MandelbrotLayer::OnRender()
 	Renderer::SetClearColor({ 0, 0, 0, 1 });
 	Renderer::Clear();
 
-	Renderer2D::BeginState(mRenderData.camera->GetViewProjection());
+	Renderer2D::BeginState();
 
 	RenderMandelbrot();
 
@@ -83,6 +93,54 @@ void MandelbrotLayer::OnOverlayRender()
 	Widgets::EndWindow();
 }
 
+void MandelbrotLayer::OnEvent(Event& e)
+{
+	e.Dispatch<KeyPressedEvent>(SLC_BIND_EVENT_FUNC(OnKeyPressed));
+	e.Dispatch<MouseScrolledEvent>(SLC_BIND_EVENT_FUNC(OnMouseScrolled));
+}
+
+bool MandelbrotLayer::OnKeyPressed(KeyPressedEvent& e)
+{
+	auto offset = 3 * ScaleFactor * mRenderData.zoomLevel;
+
+	switch (e.keyCode)
+	{
+	case Key::W:
+		mRenderData.viewportBounds[0].y -= offset;
+		mRenderData.viewportBounds[1].y -= offset;
+		break;
+	case Key::A:
+		mRenderData.viewportBounds[0].x -= offset;
+		mRenderData.viewportBounds[1].x -= offset;
+		break;
+	case Key::S:
+		mRenderData.viewportBounds[0].y += offset;
+		mRenderData.viewportBounds[1].y += offset;
+		break;
+	case Key::D:
+		mRenderData.viewportBounds[0].x += offset;
+		mRenderData.viewportBounds[1].x += offset;
+		break;
+	default:
+		break;
+	}
+
+	return false;
+}
+
+bool MandelbrotLayer::OnMouseScrolled(slc::MouseScrolledEvent& e)
+{
+	float offset = e.yOffset * ScaleFactor;
+
+	mRenderData.zoomLevel -= offset;
+	mRenderData.zoomLevel = std::max(mRenderData.zoomLevel, ScaleFactor);
+
+	mRenderData.viewportBounds[0] += offset; 
+	mRenderData.viewportBounds[1] -= offset; 
+
+	return false;
+}
+
 void MandelbrotLayer::RenderMandelbrot()
 {
 	auto const& spec = Application::GetSpec<MandelbrotAppSpec>();
@@ -91,6 +149,7 @@ void MandelbrotLayer::RenderMandelbrot()
 	{
 	case RenderMode::CPU:
 		RenderMandelbrotCPU();
+		Renderer2D::DrawQuad(Vector2{ 0, 0 }, Vector2{ 2, 2 }, mRenderData.texture);
 		break;
 
 	case RenderMode::GPU:
@@ -117,17 +176,16 @@ void MandelbrotLayer::RenderMandelbrotCPU()
 	mRenderData.texture->SetData(mRenderData.pixelData.Data(), mRenderData.width * mRenderData.height * sizeof(Pixel));
 	mRenderData.jobResults.clear();
 
-	Renderer2D::DrawQuad(Vector2{ 0, 0 }, Vector2{ 3, 2 }, mRenderData.texture);
 }
 
 void MandelbrotLayer::RenderMandelbrotGPU()
 {
 	SCONSTEXPR Vector4 QuadVertexPositions[4] =
 	{
-		{ -0.5f, -0.5f, 0.0f, 1.0f },
-		{  0.5f, -0.5f, 0.0f, 1.0f },
-		{  0.5f,  0.5f, 0.0f, 1.0f },
-		{ -0.5f,  0.5f, 0.0f, 1.0f }
+		{ -1.0f, -1.0f, 0.0f, 1.0f },
+		{  1.0f, -1.0f, 0.0f, 1.0f },
+		{  1.0f,  1.0f, 0.0f, 1.0f },
+		{ -1.0f,  1.0f, 0.0f, 1.0f }
 	};
 
 	SCONSTEXPR Matrix4 Centre = Matrix4(1.0f);
@@ -140,6 +198,8 @@ void MandelbrotLayer::RenderMandelbrotGPU()
 	{
 		vertexData.position = position;
 		vertexData.resolution = resolution;
+		vertexData.viewportMin = mRenderData.viewportBounds[0];
+		vertexData.viewportMax = mRenderData.viewportBounds[1];
 	}
 
 	mRenderData.vertexBuffer->SetData(mRenderData.vertexData.data(), BufferSize);

@@ -5,6 +5,8 @@
 
 layout(location = 0) in vec3 iPosition;
 layout(location = 1) in vec2 iResolution;
+layout(location = 2) in vec2 iViewportMin;
+layout(location = 3) in vec2 iViewportMax;
 
 layout(std140, binding = 0) uniform Camera
 {
@@ -12,10 +14,15 @@ layout(std140, binding = 0) uniform Camera
 };
 
 layout (location = 0) out vec2 oResolution;
+layout (location = 1) out vec2 oViewportMin;
+layout (location = 2) out vec2 oViewportMax;
 
 void main()
 {
-	oResolution = iResolution;
+	oResolution  = iResolution;
+	oViewportMin = iViewportMin;
+	oViewportMax = iViewportMax;
+
 	gl_Position = uViewProjection * vec4(iPosition, 1.0);
 }
 
@@ -25,11 +32,11 @@ void main()
 layout(location = 0) out vec4 oColour;
 
 layout (location = 0) in vec2 iResolution;
+layout (location = 1) in vec2 iViewportMin;
+layout (location = 2) in vec2 iViewportMax;
 
-const int ITERATIONS = 10000;
-const float LIMIT = 16.0;
-const vec2 MIN = vec2(-3.0, -2.0);
-const vec2 MAX = vec2(2.0, 2.0);
+const int ITERATIONS = 1000;
+const float LIMIT = 4.0;
 
 vec3 spectralColour(float l)        // RGB <0,1> <- lambda l <400,700> [nm]
 {
@@ -77,7 +84,7 @@ void main()
     // Normalized pixel coordinates (from 0 to 1)
     vec2 uv = gl_FragCoord.xy/iResolution.xy;
     
-    vec2 c = mix(MIN, MAX, uv);
+    vec2 c = mix(iViewportMin, iViewportMax, uv);
     
     int iters = mandelbrot(c);
     

@@ -11,12 +11,12 @@
 
 #include "Threading/ThreadPool.h"
 
-#include "Camera2D.h"
-
 struct Vertex
 {
 	slc::Vector3 position;
 	slc::Vector2 resolution;
+	slc::Vector2 viewportMin;
+	slc::Vector2 viewportMax;
 };
 
 SCONSTEXPR uint32_t VERTEX_COUNT = 4;
@@ -30,12 +30,13 @@ struct RenderData
 
 	std::array<Vertex, VERTEX_COUNT> vertexData;
 
+	float zoomLevel = 1.0f;
+	std::array<slc::Vector2, 2> viewportBounds;
+
 	int width, height;
 
 	slc::Ref<slc::Framebuffer> fbo;
 	slc::Ref<slc::Texture2D> texture;
-
-	slc::Ref<Camera2D> camera = nullptr;
 
 	slc::Grid<slc::Pixel> pixelData;
 

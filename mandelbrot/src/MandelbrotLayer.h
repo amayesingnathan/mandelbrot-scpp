@@ -25,8 +25,12 @@ public:
 	void OnRender() override;
 	void OnOverlayRender() override;
 
-	void OnEvent(slc::Event& e) override {}
-	LISTENING_EVENTS()
+	void OnEvent(slc::Event& e) override;
+	LISTENING_EVENTS( slc::EventType::KeyPressed, slc::EventType::MouseScrolled )
+
+private:
+	bool OnKeyPressed(slc::KeyPressedEvent& e);
+	bool OnMouseScrolled(slc::MouseScrolledEvent& e);
 
 private:
 	void RenderMandelbrot();
