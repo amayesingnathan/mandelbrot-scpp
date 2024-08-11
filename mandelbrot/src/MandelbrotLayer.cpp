@@ -1,5 +1,6 @@
 #include "MandelbrotLayer.h"
 
+#include "IO/Input.h"
 #include "ImGui/Widgets.h"
 #include "Graphics/Renderer.h"
 #include "Graphics/Renderer2D.h"
@@ -7,31 +8,31 @@
 
 using namespace slc;
 
-SCONSTEXPR float ScaleFactor = 0.05f;
-
 void MandelbrotLayer::OnAttach()
 {
 	const auto& appSpec = Application::GetSpec<MandelbrotAppSpec>();
 
-	mRenderData.width = appSpec.resolution.width;
-	mRenderData.height = appSpec.resolution.height;
+	int width = appSpec.resolution.width;
+	int height = appSpec.resolution.height;
+
+	mRenderData.resolution = { width, height };
 
 	FramebufferSpec fbSpec;
-	fbSpec.width = mRenderData.width;
-	fbSpec.height = mRenderData.height;
+	fbSpec.width = width;
+	fbSpec.height = height;
 	fbSpec.attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::Depth };
 	fbSpec.samples = 1;
 
-	mRenderData.zoomLevel = 1.0f;
+	mRenderData.zoomFactor = 1.0f;
 
-	mRenderData.viewportBounds[0] = Vector2{ -3.0f, -2.0f };
+	mRenderData.viewportBounds[0] = Vector2{ -2.0f, -2.0f };
 	mRenderData.viewportBounds[1] = Vector2{ 2.0f, 2.0f };
 
 	mRenderData.fbo = Ref<Framebuffer>::Create(fbSpec);
-	mRenderData.texture = Ref<Texture2D>::Create(mRenderData.width, mRenderData.height);
+	mRenderData.texture = Ref<Texture2D>::Create(width, height);
 
-	mRenderData.pixelData = Grid<Pixel>(mRenderData.width, mRenderData.height);
-	mRenderData.jobResults.reserve(mRenderData.width * mRenderData.height);
+	mRenderData.pixelData = Grid<Pixel>(width, height);
+	mRenderData.jobResults.reserve(width * height);
 
 	mRenderData.vertexArray = Ref<VertexArray>::Create();
 	mRenderData.vertexBuffer = Ref<VertexBuffer>::Create(4 * static_cast<uint32_t>(sizeof(Vertex)));
@@ -101,7 +102,9 @@ void MandelbrotLayer::OnEvent(Event& e)
 
 bool MandelbrotLayer::OnKeyPressed(KeyPressedEvent& e)
 {
-	auto offset = 3 * ScaleFactor * mRenderData.zoomLevel;
+	SCONSTEXPR float ScaleFactor = 0.08f;
+
+	auto offset = ScaleFactor / mRenderData.zoomFactor;
 
 	switch (e.keyCode)
 	{
@@ -130,13 +133,19 @@ bool MandelbrotLayer::OnKeyPressed(KeyPressedEvent& e)
 
 bool MandelbrotLayer::OnMouseScrolled(slc::MouseScrolledEvent& e)
 {
-	float offset = e.yOffset * ScaleFactor;
+	SCONSTEXPR Vector2 ViewportBase[2] = {
+		{ -2.0f, -2.0f },
+		{ 2.0f, 2.0f },
+	};
 
-	mRenderData.zoomLevel -= offset;
-	mRenderData.zoomLevel = std::max(mRenderData.zoomLevel, ScaleFactor);
+	mRenderData.zoomFactor += e.yOffset * 0.1f * mRenderData.zoomFactor;
+	mRenderData.zoomFactor = std::max(mRenderData.zoomFactor, 0.0001f);
 
-	mRenderData.viewportBounds[0] += offset; 
-	mRenderData.viewportBounds[1] -= offset; 
+	float scale = 1.0f / mRenderData.zoomFactor;
+	Vector2 centre = (mRenderData.viewportBounds[1] + mRenderData.viewportBounds[0]) / 2.0f;
+
+	mRenderData.viewportBounds[0] = centre + (ViewportBase[0] * scale);
+	mRenderData.viewportBounds[1] = centre + (ViewportBase[1] * scale);
 
 	return false;
 }
@@ -160,11 +169,14 @@ void MandelbrotLayer::RenderMandelbrot()
 
 void MandelbrotLayer::RenderMandelbrotCPU()
 {
-	for (int j = 0; j < mRenderData.height; j++)
+	int width = static_cast<int>(mRenderData.resolution.x);
+	int height = static_cast<int>(mRenderData.resolution.y);
+
+	for (int j = 0; j < height; j++)
 	{
-		for (int i = 0; i < mRenderData.width; i++)
+		for (int i = 0; i < width; i++)
 		{
-			mRenderData.jobResults.emplace_back(mRenderData.workers.Queue(GetMandelbrotColour, i, j, mRenderData.width, mRenderData.height));
+			mRenderData.jobResults.emplace_back(mRenderData.workers.Queue(GetMandelbrotColour, i, j, width, height));
 		}
 	}
 
@@ -173,7 +185,7 @@ void MandelbrotLayer::RenderMandelbrotCPU()
 		pixel = future.get();
 	}
 
-	mRenderData.texture->SetData(mRenderData.pixelData.Data(), mRenderData.width * mRenderData.height * sizeof(Pixel));
+	mRenderData.texture->SetData(mRenderData.pixelData.Data(), width * height * sizeof(Pixel));
 	mRenderData.jobResults.clear();
 
 }
@@ -192,12 +204,10 @@ void MandelbrotLayer::RenderMandelbrotGPU()
 
 	SCONSTEXPR uint32_t BufferSize = sizeof(Vertex) * VERTEX_COUNT;
 
-	Vector2 resolution(mRenderData.width, mRenderData.height);
-
 	for (auto&& [vertexData, position] : std::views::zip(mRenderData.vertexData, QuadVertexPositions))
 	{
 		vertexData.position = position;
-		vertexData.resolution = resolution;
+		vertexData.resolution = mRenderData.resolution;
 		vertexData.viewportMin = mRenderData.viewportBounds[0];
 		vertexData.viewportMax = mRenderData.viewportBounds[1];
 	}

@@ -30,10 +30,10 @@ struct RenderData
 
 	std::array<Vertex, VERTEX_COUNT> vertexData;
 
-	float zoomLevel = 1.0f;
+	float zoomFactor = 1.0f;
 	std::array<slc::Vector2, 2> viewportBounds;
 
-	int width, height;
+	slc::Vector2 resolution;
 
 	slc::Ref<slc::Framebuffer> fbo;
 	slc::Ref<slc::Texture2D> texture;
