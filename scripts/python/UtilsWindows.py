@@ -10,6 +10,9 @@ import urllib
 from zipfile import ZipFile
 from pathlib import Path
 
+def OpenFile(filepath):
+    os.startfile(filepath)
+
 def DownloadFile(url, filepath):
     path = filepath
     filepath = os.path.abspath(filepath)

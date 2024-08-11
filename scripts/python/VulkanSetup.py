@@ -14,8 +14,8 @@ from urllib.request import urlopen
 
 class VulkanConfiguration:
     requiredVulkanVersion = "1.3."
-    installVulkanVersion = "1.3.216.0"
-    vulkanDirectory = "./Labyrinth/dependencies/VulkanSDK"
+    installVulkanVersion = "1.3.236.0"
+    vulkanDirectory = "./mandelbrot/dependencies/VulkanSDK"
 
     if platform.system() == "Windows":
         vulkanPlatform = "windows"
@@ -24,7 +24,7 @@ class VulkanConfiguration:
     elif platform.system() == "Linux":
         vulkanPlatform = "linux"
         vulkanFilename = "vulkan_sdk.tar.gz"
-        vulkanExecPath = f"{vulkanDirectory}/{installVulkanVersion}/vulkan_sdk"
+        vulkanExecPath = f"{vulkanDirectory}/{installVulkanVersion}/vulkansdk"
 
     @classmethod
     def Validate(cls):
@@ -68,10 +68,11 @@ class VulkanConfiguration:
         print("Downloading {0:s} to {1:s}".format(vulkanInstallURL, vulkanInstallPath))
         Utils.DownloadFile(vulkanInstallURL, vulkanInstallPath)
         print("Running Vulkan SDK installer...")        
-        if platform.system() == "linux":
+        if platform.system() == "Linux":
             print("Extracting", vulkanInstallPath)
             Utils.UnpackFile(vulkanInstallPath, [], True)
-        os.startfile(os.path.abspath(vulkanExecPath))
+            
+        Utils.OpenFile(os.path.abspath(cls.vulkanExecPath))
         print("Re-run this script after installation!")
         quit()
 
