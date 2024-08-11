@@ -15,7 +15,7 @@ from urllib.request import urlopen
 class VulkanConfiguration:
     requiredVulkanVersion = "1.3."
     installVulkanVersion = "1.3.216.0"
-    vulkanDirectory = "./Labyrinth/dependencies/VulkanSDK"
+    vulkanDirectory = "./mandelbrot/dependencies/VulkanSDK"
 
     if platform.system() == "Windows":
         vulkanPlatform = "windows"
@@ -62,16 +62,19 @@ class VulkanConfiguration:
             if reply == 'n':
                 return
             permissionGranted = (reply == 'y')
+            
+        print(cls.vulkanDirectory)
 
-        vulkanInstallURL = f"https://sdk.lunarg.com/sdk/download/{cls.installVulkanVersion}/{cls.vulkanPlatform}/{cls.vulkanFilename}"
-        vulkanInstallPath = f"{cls.vulkanDirectory}/{cls.vulkanFilename}"
-        print("Downloading {0:s} to {1:s}".format(vulkanInstallURL, vulkanInstallPath))
-        Utils.DownloadFile(vulkanInstallURL, vulkanInstallPath)
-        print("Running Vulkan SDK installer...")        
-        if platform.system() == "linux":
-            print("Extracting", vulkanInstallPath)
-            Utils.UnpackFile(vulkanInstallPath, [], True)
-        os.startfile(os.path.abspath(vulkanExecPath))
+        #vulkanInstallURL = f"https://sdk.lunarg.com/sdk/download/{cls.installVulkanVersion}/{cls.vulkanPlatform}/{cls.vulkanFilename}"
+        #vulkanInstallPath = f"{cls.vulkanDirectory}/{cls.vulkanFilename}"
+        #print("Downloading {0:s} to {1:s}".format(vulkanInstallURL, vulkanInstallPath))
+        #Utils.DownloadFile(vulkanInstallURL, vulkanInstallPath)
+        #print("Running Vulkan SDK installer...")        
+        #if platform.system() == "linux":
+            #print("Extracting", vulkanInstallPath)
+            #Utils.UnpackFile(vulkanInstallPath, [], True)
+            
+        #Utils.OpenFile(os.path.abspath(vulkanExecPath))
         print("Re-run this script after installation!")
         quit()
 

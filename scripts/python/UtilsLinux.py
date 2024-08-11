@@ -8,6 +8,10 @@ import urllib
 import tarfile
 from pathlib import Path
 
+def OpenFile(filepath):
+    opener = "open" if sys.platform == "darwin" else "xdg-open"
+    subprocess.call([opener, filename])
+
 def DownloadFile(url, filepath):
     filepath = os.path.abspath(filepath)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
